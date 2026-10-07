@@ -1,0 +1,6 @@
+id,imie,nazwisko,miasto,adres,email,uwagi
+1,Łukasz,Żółkiewski,Kraków,"ul. Długa 5, m. 3",lukasz@example.com,
+2,Zofia,Wąsik,Gdańsk,ul. Ślężna 12,,brak adresu e-mail
+3,Grzegorz,Brzęczyszczykiewicz,Łódź,"al. Kościuszki 7, lok. 2",grzegorz@example.com,"Powiedział ""cześć"" i wyszedł"
+4,Małgorzata,Źrebięta,Wrocław,pl. Grunwaldzki 1,malgosia@example.com,Zażółć gęślą jaźń
+5,Jędrzej,Nowak,Poznań,,jedrzej@example.com,
