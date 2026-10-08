@@ -1,0 +1,16 @@
+{
+  "wersja": "1.0",
+  "wygenerowano": "2026-10-08",
+  "dane": [
+    {
+      "id": "1",
+      "imie": "Tomasz",
+      "miasto": "Lublin"
+    },
+    {
+      "id": "2",
+      "imie": "Katarzyna",
+      "miasto": "Rzeszów"
+    }
+  ]
+}

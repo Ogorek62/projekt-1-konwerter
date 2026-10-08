@@ -1,0 +1,29 @@
+[
+  {
+    "id": "1",
+    "klient": {
+      "imie": "Grzegorz",
+      "kontakt": {
+        "email": "grzegorz@example.com",
+        "telefon": "600200300"
+      }
+    },
+    "zamowienia": [
+      {
+        "nr": "Z/2026/01",
+        "kwota": 129.99,
+        "pozycje": [
+          {
+            "nazwa": "Książka",
+            "ilosc": 2
+          }
+        ]
+      },
+      {
+        "nr": "Z/2026/02",
+        "kwota": 15.0,
+        "pozycje": []
+      }
+    ]
+  }
+]

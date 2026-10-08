@@ -48,10 +48,12 @@ projekt-1-konwerter/
 │   ├── __main__.py      # punkt wejścia programu
 │   └── errors.py        # własne wyjątki
 ├── output/              # pliki wynikowe
-└── samples/             # przykładowe dane
-    ├── dane.csv
-    ├── dane.json
-    └── zly.json         # celowo błędny plik do testów
+├── samples/             # przykładowe dane
+│   ├── dane.csv
+│   ├── dane.json
+│   └── zly.json         # celowo błędny plik do testów
+└── test/
+    └── test_csv_json.py 
 ```
  
 ---

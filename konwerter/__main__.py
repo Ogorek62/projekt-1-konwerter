@@ -1,9 +1,13 @@
 import csv
 import json
-import logging
+import argparse
 from konwerter.errors import * 
 from pathlib import Path
 
+parser = argparse.ArgumentParser()
+parser.add_argument("-i", "--Input", help="input file path")
+parser.add_argument("-o", "--Output", help="outpur file path")
+args = parser.parse_args()
 
 samples = Path.cwd() / "samples"
 output = Path.cwd() / "output"
@@ -38,15 +42,16 @@ def convert_json_csv(file_in:str, file_out:str):
 
 
 def main():
-    try:
-        convert_csv_json("dane.csv", "csvout.json")
-    except Exception as e:
-        print("ERROR: ", e)
-
-    try:
-        convert_json_csv("dane.json", "jsonout.csv")
-    except Exception as e:
-        print("ERROR: ", e)
+    if args.Input.find(".json") != -1:
+        try:
+            convert_json_csv(args.Input, args.Output)
+        except Exception as e:
+            print("ERROR: ", e)
+    elif args.Input.find(".csv") != -1:
+        try:
+            convert_csv_json(args.Input, args.Output)
+        except Exception as e:
+            print("ERROR: ", e)
     
     print("elo")
 
