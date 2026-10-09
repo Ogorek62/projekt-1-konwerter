@@ -60,7 +60,10 @@ projekt-1-konwerter/
  
 ## ✅ TODO
  
-- [ ] Przetestować różne sytuacje konwersji
-- [ ] Prosta aplikacja konsolowa do obsługi konwersji
-- [ ] Obsługa błędów
-- [ ] dodać automatyczne testowanie
+- [x] Przetestować różne sytuacje konwersji
+- [ ] Ulepszyc konwerter csv -> json
+- [ ] Obsługa błędów - sobota
+- [x] dodać automatyczne testowanie
+- [x] sprawdzenie wyniku funkcji - sobota
+- [ ] zrobić konwersje pdf i inne - niedziela
+

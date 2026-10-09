@@ -42,6 +42,7 @@ def convert_json_csv(file_in:str, file_out:str):
 
 
 def main():
+    
     if args.Input.find(".json") != -1:
         try:
             convert_json_csv(args.Input, args.Output)
@@ -52,8 +53,10 @@ def main():
             convert_csv_json(args.Input, args.Output)
         except Exception as e:
             print("ERROR: ", e)
+    else:
+        print("daj argumenty")
     
-    print("elo")
+
 
 if __name__ == "__main__":
     main()
