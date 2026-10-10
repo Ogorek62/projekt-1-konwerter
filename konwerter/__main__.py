@@ -3,6 +3,7 @@ import json
 import argparse
 from konwerter.errors import * 
 from pathlib import Path
+from detect_delimiter import detect
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-i", "--Input", help="input file path")
@@ -13,20 +14,23 @@ samples = Path.cwd() / "samples"
 output = Path.cwd() / "output"
 
 
-def convert_csv_json(file_in:str, file_out:str):
-    with open(samples/file_in, mode='r', encoding='utf-8') as csvfile:
-        data = list(csv.DictReader(csvfile))
+def convert_csv_to_json(file_path_in, file_path_out):
+    with open(file_path_in, mode='r', encoding='utf-8-sig') as csvfile:
+        sample = csvfile.read(4096)
+        csvfile.seek(0)
+        delimeter = detect(sample, whitelist=[';',',','\t','|'])
+        data = list(csv.DictReader(csvfile, delimiter=delimeter))
 
-    with open(output/file_out, mode='w', encoding='utf-8') as jsonfile:
+    with open(file_path_out, mode='w', encoding='utf-8') as jsonfile:
         json.dump(data, jsonfile, indent=4, ensure_ascii=False)
     print("[FUNCTION END] convert_csv_json")
+    
 
-
-def convert_json_csv(file_in:str, file_out:str):
-    with open(samples/file_in, mode='r', encoding='utf-8') as jsonfile:
+def convert_json_to_csv(file_path_in, file_path_out):
+    with open(file_path_in, mode='r', encoding='utf-8') as jsonfile:
         data = json.load(jsonfile)
 
-    df = open(output/file_out, mode='w', encoding='utf-8')
+    df = open(file_path_out, mode='w', encoding='utf-8')
     cw = csv.writer(df)
 
     c = 0
@@ -45,12 +49,12 @@ def main():
     
     if args.Input.find(".json") != -1:
         try:
-            convert_json_csv(args.Input, args.Output)
+            convert_json_to_csv(samples/args.Input, output/args.Output)
         except Exception as e:
             print("ERROR: ", e)
     elif args.Input.find(".csv") != -1:
         try:
-            convert_csv_json(args.Input, args.Output)
+            convert_csv_to_json(samples/args.Input, output/args.Output)
         except Exception as e:
             print("ERROR: ", e)
     else:

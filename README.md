@@ -33,7 +33,17 @@ pip install -r requirements.txt
 ```bash
 python -m konwerter
 ```
- 
+
+### 4. Testowanie programu
+  
+```bash
+pytest -s test/test_csv.py
+
+lub
+
+pytest -s test/test_json.py
+```
+
 ---
  
 ## 📁 Struktura projektu

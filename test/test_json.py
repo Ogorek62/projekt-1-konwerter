@@ -1,5 +1,6 @@
 import pytest
 import subprocess
+import sys
 from pathlib import Path
 
 
@@ -11,7 +12,7 @@ files_to_test = list(test_folder.glob("*.json"))
 
 @pytest.mark.parametrize("file_name", files_to_test)
 def test_files(file_name):
-    result = subprocess.run(["python", 
+    result = subprocess.run([sys.executable, 
                              "-m", 
                              "konwerter", 
                              "-i", file_name , 
