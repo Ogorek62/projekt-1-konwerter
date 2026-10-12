@@ -14,3 +14,4 @@ class EmptyInputFile(ConversionError):
 
 class JsonIsNested(ConversionError):
     pass
+

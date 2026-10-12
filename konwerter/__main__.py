@@ -1,6 +1,8 @@
 import csv
 import json
 import argparse
+from docx import Document
+from fpdf import FPDF
 from konwerter.errors import * 
 from pathlib import Path
 
@@ -62,10 +64,10 @@ def convert_json_to_csv(file_path_in, file_path_out):
         raise CorruptedInputFile(f"Nie mozna odczytac pliku przez złe kodowanie lub uszkodzone dane: {e}")
 
     if not data:
-            raise EmptyInputFile("Plik nie zawiera żadnych danych")
+        raise EmptyInputFile("Plik nie zawiera żadnych danych")
 
     try:
-        df = open(file_path_out, mode='w', encoding='utf-8-sig')
+        df = open(file_path_out, mode='w', encoding='utf-8-sig', newline='')
         cw = csv.writer(df)
     except Exception as e:
         raise Exception
@@ -80,18 +82,31 @@ def convert_json_to_csv(file_path_in, file_path_out):
         for d in data:
             cw.writerow([d.get(k) for k in keys])
         
-        
-        
-        '''for data in data:
-            if c == 0:
-                header = data.keys()
-                cw.writerow(header)
-                c += 1
-            cw.writerow(data.values())'''
+    
     finally:
         df.close()
     print("[FUNCTION END] convert_json_to_csv")
 
+def convert_txt_to_docx(file_path_in, file_path_out):
+    doc = Document() 
+
+    with open(file_path_in, "r", encoding="utf-8", errors="replace") as file:
+        for line in file:
+            doc.add_paragraph(line.rstrip()) 
+
+    doc.save(file_path_out) 
+
+    print(f"DOCX created successfully: {file_path_out}") 
+
+def convert_txt_to_pdf(file_path_in, file_path_out):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.add_font("Arial", style="", fname="fonts/ARIAL.TTF")
+    pdf.set_font("Arial", size=15)
+    with open(file_path_in, 'r', encoding="utf-8") as f:
+        for x in f:
+            pdf.cell(w=200, h=10, text=x.strip(), align='C', new_x="LMARGIN", new_y="NEXT")
+    pdf.output(file_path_out) 
 
 def main():
     
@@ -109,10 +124,19 @@ def main():
             print("ERROR", e)
         except Exception as e:
             print("ERROR: ", e)
+    elif (args.Input.find(".txt") != -1) and (args.Output.find(".docx") != -1):
+        try:
+            convert_txt_to_docx(samples/args.Input, output/args.Output)
+        except Exception as e:
+            print("ERROR: ", e)
+    elif (args.Input.find(".txt") != -1) and (args.Output.find(".pdf") != -1):
+        try:
+            convert_txt_to_pdf(samples/args.Input, output/args.Output)
+        except Exception as e:
+            print("ERROR: ", e)
     else:
         print("daj argumenty")
     
-
 
 if __name__ == "__main__":
     main()
