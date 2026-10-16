@@ -3,6 +3,7 @@ import json
 import argparse
 from docx import Document
 from fpdf import FPDF
+from collections.abc import Callable
 from konwerter.errors import * 
 from pathlib import Path
 
@@ -13,6 +14,16 @@ args = parser.parse_args()
 
 samples = Path.cwd() / "samples"
 output = Path.cwd() / "output"
+
+Converter = Callable[[Path, Path], Path]
+REGISTRY: dict[tuple[str, str], Converter] = {}
+
+def converter(source: str, target: str):
+    """Dekorator rejestrujący pojedynczy kierunek konwersji."""
+    def register(func: Converter) -> Converter:
+        REGISTRY[(source.lower(), target.lower())] = func
+        return func
+    return register
 
 def is_json_nested(data) -> bool:
 
@@ -26,10 +37,10 @@ def is_json_nested(data) -> bool:
 
     return False
 
-
-def convert_csv_to_json(file_path_in, file_path_out):
+@converter(".csv", ".json")
+def csv_to_json(source_file: Path, output_dir: Path):
     try:
-        with open(file_path_in, mode='r', encoding='utf-8-sig', newline='') as csvfile:
+        with open(source_file, mode='r', encoding='utf-8-sig', newline='') as csvfile:
             sample = csvfile.read(4096)
             csvfile.seek(0)
             try:
@@ -46,14 +57,17 @@ def convert_csv_to_json(file_path_in, file_path_out):
     if not data:
         raise EmptyInputFile("Plik nie zawiera żadnych danych")
     
-    with open(file_path_out, mode='w', encoding='utf-8') as jsonfile:
+    target = output_dir / f"{source_file.stem}.json"
+
+    with open(target, mode='w', encoding='utf-8') as jsonfile:
         json.dump(data, jsonfile, indent=4, ensure_ascii=False)
     print("[FUNCTION END] convert_csv_to_json")
+    return target
     
-
-def convert_json_to_csv(file_path_in, file_path_out):
+@converter(".json", ".csv")
+def json_to_csv(source_file: Path, output_dir: Path):
     try:
-        with open(file_path_in, mode='r', encoding='utf-8') as jsonfile:
+        with open(source_file, mode='r', encoding='utf-8') as jsonfile:
             data = json.load(jsonfile)
             if not isinstance(data, list):
                     data = [data]
@@ -66,8 +80,10 @@ def convert_json_to_csv(file_path_in, file_path_out):
     if not data:
         raise EmptyInputFile("Plik nie zawiera żadnych danych")
 
+    target = output_dir / f"{source_file.stem}.csv"
+
     try:
-        df = open(file_path_out, mode='w', encoding='utf-8-sig', newline='')
+        df = open(target, mode='w', encoding='utf-8-sig', newline='')
         cw = csv.writer(df)
     except Exception as e:
         raise Exception
@@ -86,56 +102,42 @@ def convert_json_to_csv(file_path_in, file_path_out):
     finally:
         df.close()
     print("[FUNCTION END] convert_json_to_csv")
+    return target
 
-def convert_txt_to_docx(file_path_in, file_path_out):
+@converter(".txt", ".docx")
+def txt_to_docx(source_file: Path, output_dir: Path):
     doc = Document() 
 
-    with open(file_path_in, "r", encoding="utf-8", errors="replace") as file:
+    with open(source_file, "r", encoding="utf-8", errors="replace") as file:
         for line in file:
             doc.add_paragraph(line.rstrip()) 
 
-    doc.save(file_path_out) 
+    target = output_dir / f"{source_file.stem}.docx"
 
-    print(f"DOCX created successfully: {file_path_out}") 
+    doc.save(target) 
 
-def convert_txt_to_pdf(file_path_in, file_path_out):
+    print(f"DOCX created successfully: {target}")
+    return target 
+
+@converter(".txt", ".pdf")
+def txt_to_pdf(source_file: Path, output_dir: Path):
     pdf = FPDF()
     pdf.add_page()
     pdf.add_font("Arial", style="", fname="fonts/ARIAL.TTF")
     pdf.set_font("Arial", size=15)
-    with open(file_path_in, 'r', encoding="utf-8") as f:
+    with open(source_file, 'r', encoding="utf-8") as f:
         for x in f:
             pdf.cell(w=200, h=10, text=x.strip(), align='C', new_x="LMARGIN", new_y="NEXT")
-    pdf.output(file_path_out) 
+    target = output_dir / f"{source_file.stem}.pdf"
+    pdf.output(target) 
 
 def main():
+
+    key = (Path(args.Input).suffix, Path(args.Output).suffix)
+    func = REGISTRY[key]
+    func(samples/args.Input, output)
     
-    if args.Input.find(".json") != -1:
-        try:
-            convert_json_to_csv(samples/args.Input, output/args.Output)
-        except ConversionError as e:
-            print("ERROR: ", e)
-        except Exception as e:
-            print("ERROR: ", e)
-    elif args.Input.find(".csv") != -1:
-        try:
-            convert_csv_to_json(samples/args.Input, output/args.Output)
-        except ConversionError as e:
-            print("ERROR", e)
-        except Exception as e:
-            print("ERROR: ", e)
-    elif (args.Input.find(".txt") != -1) and (args.Output.find(".docx") != -1):
-        try:
-            convert_txt_to_docx(samples/args.Input, output/args.Output)
-        except Exception as e:
-            print("ERROR: ", e)
-    elif (args.Input.find(".txt") != -1) and (args.Output.find(".pdf") != -1):
-        try:
-            convert_txt_to_pdf(samples/args.Input, output/args.Output)
-        except Exception as e:
-            print("ERROR: ", e)
-    else:
-        print("daj argumenty")
+    print(REGISTRY)
     
 
 if __name__ == "__main__":

@@ -179,11 +179,5 @@ projekt-1-konwerter/
 
 ## ✅ TODO
 
-- [x] Przetestować różne sytuacje konwersji
-- [x] Ulepszyć konwerter CSV → JSON
-- [x] Obsługa błędów CSV → JSON
-- [x] Dodać automatyczne testowanie
-- [x] Sprawdzenie wyniku funkcji
-- [x] Sprawdzenie i ulepszenie funkcji JSON → CSV
-- [x] Dodać obsługę błędów do JSON → CSV
+- [ ] Przerobic program tak aby był bardziej jak ten na tym pliku od pani
 - [ ] Konwersja PDF i innych formatów
