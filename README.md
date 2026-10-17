@@ -179,5 +179,7 @@ projekt-1-konwerter/
 
 ## ✅ TODO
 
-- [ ] Przerobic program tak aby był bardziej jak ten na tym pliku od pani
-- [ ] Konwersja PDF i innych formatów
+- [x] Przerobic program tak aby był bardziej jak ten na tym pliku od pani
+- [x] Konwersja z docx do pdf orax docx do txt - sobota
+- [ ] robienie dobrej obsługi błędów - sobota
+- [ ] zaczęcie gui - niedziela

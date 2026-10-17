@@ -3,9 +3,11 @@ import json
 import argparse
 from docx import Document
 from fpdf import FPDF
+import subprocess
 from collections.abc import Callable
 from konwerter.errors import * 
 from pathlib import Path
+from docx.opc.exceptions import PackageNotFoundError
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-i", "--Input", help="input file path")
@@ -131,14 +133,37 @@ def txt_to_pdf(source_file: Path, output_dir: Path):
     target = output_dir / f"{source_file.stem}.pdf"
     pdf.output(target) 
 
-def main():
+@converter(".docx", ".txt")
+def docx_to_txt(source_file: Path, output_dir: Path):
+    try:
+        doc = Document(str(source_file))
+    except PackageNotFoundError as exc:
+        raise ValueError("Plik jest uszkodzony albo nie jest dokumentem DOCX.") from exc
 
+    lines = [paragraph.text for paragraph in doc.paragraphs]
+
+    target = output_dir / f"{source_file.stem}.txt"
+    target.write_text("\n".join(lines), encoding="utf-8")
+    return target
+
+@converter(".docx", ".pdf")
+def docx_to_pdf(source_file: Path, output_dir: Path) -> Path:
+    command = [
+        "libreoffice", "--headless", "--convert-to", "pdf",
+        "--outdir", str(output_dir), str(source_file)
+        ]
+    result = subprocess.run(command, capture_output=True, text=True, timeout=60)
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or "Konwersja nie powiodła się")
+    target = output_dir / f"{source_file.stem}.pdf"
+    if not target.exists():
+        raise RuntimeError("Narzędzie nie utworzyło oczekiwanego pliku")
+    return target
+
+def main():
     key = (Path(args.Input).suffix, Path(args.Output).suffix)
     func = REGISTRY[key]
     func(samples/args.Input, output)
-    
-    print(REGISTRY)
-    
 
 if __name__ == "__main__":
     main()
