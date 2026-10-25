@@ -1,2 +1,4 @@
-﻿a,b
-1,2
+﻿id,imie,nazwisko,miasto
+1,Łukasz,Żółkiewski,Kraków
+2,Zofia,Wąsik,Gdańsk
+3,Jędrzej,Nowak,Poznań

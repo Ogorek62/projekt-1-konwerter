@@ -3,6 +3,7 @@ import json
 import argparse
 from docx import Document
 from fpdf import FPDF
+import shutil
 import subprocess
 from collections.abc import Callable
 from konwerter.errors import * 
@@ -19,6 +20,18 @@ output = Path.cwd() / "output"
 
 Converter = Callable[[Path, Path], Path]
 REGISTRY: dict[tuple[str, str], Converter] = {}
+
+def find_office() -> str:
+    found = shutil.which("soffice") or shutil.which("libreoffice")
+    if found:
+        return found
+    for candidate in (
+        r"C:\Program Files\LibreOffice\program\soffice.exe",
+        r"C:\Program Files (x86)\LibreOffice\program\soffice.exe",
+    ):
+        if Path(candidate).exists():
+            return candidate
+    raise RuntimeError("Nie znaleziono LibreOffice (soffice.exe)")
 
 def converter(source: str, target: str):
     """Dekorator rejestrujący pojedynczy kierunek konwersji."""
@@ -129,7 +142,7 @@ def txt_to_pdf(source_file: Path, output_dir: Path):
     pdf.set_font("Arial", size=15)
     with open(source_file, 'r', encoding="utf-8") as f:
         for x in f:
-            pdf.cell(w=200, h=10, text=x.strip(), align='C', new_x="LMARGIN", new_y="NEXT")
+            pdf.cell(w=0, h=10, text=x.strip(), align='L', new_x="LMARGIN", new_y="NEXT")
     target = output_dir / f"{source_file.stem}.pdf"
     pdf.output(target) 
 
@@ -149,7 +162,7 @@ def docx_to_txt(source_file: Path, output_dir: Path):
 @converter(".docx", ".pdf")
 def docx_to_pdf(source_file: Path, output_dir: Path) -> Path:
     command = [
-        "libreoffice", "--headless", "--convert-to", "pdf",
+        find_office(), "--headless", "--convert-to", "pdf",
         "--outdir", str(output_dir), str(source_file)
         ]
     result = subprocess.run(command, capture_output=True, text=True, timeout=60)
