@@ -182,5 +182,4 @@ projekt-1-konwerter/
 - [x] Przerobic program tak aby był bardziej jak ten na tym pliku od pani
 - [x] Konwersja z docx do pdf orax docx do txt - sobota
 - [x] zrobienie lepszych testow
-- [ ] robienie dobrej obsługi błędów
 - [ ] zaczęcie gui - niedziela
