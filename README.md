@@ -1,10 +1,8 @@
 <div align="center">
 
-# 🔄 Uniwersalny Konwerter Plików
+# 🔄 Konwerter Plików
 
 **Aplikacja desktopowa (Python 3 + Tkinter/ttk) do konwersji plików między wybranymi formatami.**
-
-Projekt 1 – Programowanie V
 
 </div>
 
