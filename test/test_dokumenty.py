@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 from docx import Document
+from pypdf import PdfReader
 
 from konwerter.converters import find_office
 from konwerter.errors import CorruptedInputFile
@@ -23,8 +24,14 @@ wymaga_libreoffice = pytest.mark.skipif(
 )
 
 
-def to_jest_pdf(path: Path) -> bool:
-    return path.read_bytes().startswith(b"%PDF")
+def tekst_pdf(path: Path) -> str:
+    """Wyciąga tekst ze wszystkich stron PDF.
+
+    PdfReader rzuca wyjątek, jeśli plik nie jest poprawnym PDF - więc samo
+    wczytanie sprawdza też, że wynik da się otworzyć.
+    """
+    reader = PdfReader(path)
+    return "\n".join(page.extract_text() for page in reader.pages)
 
 
 # ---------------------------------------------------------------- Grupa B: poprawne dane
@@ -35,9 +42,19 @@ def test_txt_do_docx_zachowuje_akapity(convert):
     assert akapity == (SAMPLES / "txt_dokument.txt").read_text(encoding="utf-8").splitlines()
 
 
-@pytest.mark.parametrize("plik", ["txt_dokument.txt", "txt_dluga_linia.txt"])
-def test_txt_do_pdf(convert, plik):
-    assert to_jest_pdf(convert(plik, ".pdf"))
+def test_txt_do_pdf_zachowuje_tresc(convert):
+    wynik = tekst_pdf(convert("txt_dokument.txt", ".pdf"))
+    zrodlo = (SAMPLES / "txt_dokument.txt").read_text(encoding="utf-8")
+    # każda niepusta linia trafia do PDF z polskimi znakami i wcięciem
+    # (puste linie w PDF są tylko odstępem, więc pypdf ich nie zwraca)
+    assert wynik.splitlines() == [linia for linia in zrodlo.splitlines() if linia.strip()]
+
+
+def test_txt_do_pdf_zawija_dluga_linie(convert):
+    wynik = tekst_pdf(convert("txt_dluga_linia.txt", ".pdf"))
+    zrodlo = (SAMPLES / "txt_dluga_linia.txt").read_text(encoding="utf-8")
+    assert len(wynik.splitlines()) > 1                  # linia została zawinięta...
+    assert " ".join(wynik.split()) == " ".join(zrodlo.split())  # ...i nic nie zostało ucięte
 
 
 def test_docx_do_txt(convert):
@@ -63,4 +80,9 @@ def test_uszkodzony_docx(convert):
 @wymaga_libreoffice
 @pytest.mark.parametrize("plik", ["docx_dokument.docx", "odt_dokument.odt"])
 def test_dokument_biurowy_do_pdf(convert, plik):
-    assert to_jest_pdf(convert(plik, ".pdf"))
+    wynik = tekst_pdf(convert(plik, ".pdf"))
+    # Sprawdzamy tylko fragmenty bez polskich liter: LibreOffice osadza czcionkę bez
+    # tabeli ToUnicode, przez co pypdf błędnie odczytuje znaki diakrytyczne
+    # (to ograniczenie odczytu w teście, nie konwersji).
+    assert "Dokument testowy" in wynik
+    assert "akapit" in wynik
