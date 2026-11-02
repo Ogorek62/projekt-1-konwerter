@@ -71,9 +71,11 @@ def test_txt_w_cp1250_daje_czytelny_blad(convert, cel):
         convert("txt_cp1250.txt", cel)
 
 
-def test_uszkodzony_docx(convert):
+@pytest.mark.parametrize("cel", [".txt", ".pdf"])
+def test_uszkodzony_docx(convert, cel):
+    # Dla .pdf błąd pojawia się przed wywołaniem LibreOffice, więc test nie wymaga jego instalacji.
     with pytest.raises(CorruptedInputFile):
-        convert("docx_uszkodzony.docx", ".txt")
+        convert("docx_uszkodzony.docx", cel)
 
 
 # ---------------------------------------------------------------- Grupa C: LibreOffice

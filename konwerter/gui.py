@@ -119,8 +119,13 @@ class ConvertApp:
             targets = available_targets(Path(f"plik{src}"))
         else:
             targets = sorted({b for _, b in self.all_pairs})
+        previous = self.format_list.get()
         self.format_list.config(values=targets)
-        if targets:
+        if previous in targets:
+            # dotychczasowy wybór nadal jest poprawny -> zostawiamy go
+            self.format_list.set(previous)
+        elif targets:
+            # wybór niepoprawny dla nowego formatu -> wartość bazowa
             self.format_list.current(0)
         else:
             self.format_list.set("")

@@ -296,6 +296,7 @@ W projekcie korzystano z asystenta AI **Claude (Anthropic)**. AI użyto do pomoc
 - pisaniu **testów**,
 - **poprawkach błędów** w kodzie,
 - **zrozumieniu kodu napisanego przez AI**.
+- zrobiene plików testowych
 
 ---
 

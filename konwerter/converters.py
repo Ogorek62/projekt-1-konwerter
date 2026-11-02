@@ -9,6 +9,7 @@ import os
 import shutil
 import subprocess
 import time
+import zipfile
 from pathlib import Path
 from docx.opc.exceptions import PackageNotFoundError
 from konwerter.errors import *
@@ -157,6 +158,11 @@ def docx_to_txt(source_file: Path, output_dir: Path):
 @converter(".odt", ".pdf")
 def office_to_pdf(source_file: Path, output_dir: Path) -> Path:
     """Konwersja DOCX/ODT -> PDF przez LibreOffice w trybie headless."""
+    # DOCX i ODT to archiwa ZIP. LibreOffice rozpoznaje format po zawartości, więc bez tej
+    # kontroli np. zwykły tekst z rozszerzeniem .docx zostałby "poprawnie" zamieniony na PDF.
+    if not zipfile.is_zipfile(source_file):
+        raise CorruptedInputFile(
+            f"Plik jest uszkodzony albo nie jest dokumentem {source_file.suffix[1:].upper()}.")
     command = [
         find_office(), "--headless", "--convert-to", "pdf",
         "--outdir", str(output_dir), str(source_file)

@@ -40,7 +40,7 @@ Wszystkie pliki tekstowe są w UTF-8, chyba że opis mówi inaczej.
 | `txt_dluga_linia.txt` | → PDF | długa linia zawinięta, nie ucięta |
 | `txt_cp1250.txt` | → DOCX, → PDF | błąd z instrukcją „zapisz plik jako UTF-8” |
 | `docx_dokument.docx` | → TXT | 4 linie: `Dokument testowy`, `Zażółć gęślą jaźń`, pusta, `Trzeci akapit: ĄĆĘŁŃÓŚŹŻ` |
-| `docx_uszkodzony.docx` | → TXT | błąd „Plik jest uszkodzony albo nie jest dokumentem DOCX” |
+| `docx_uszkodzony.docx` | → TXT, → PDF | błąd „Plik jest uszkodzony albo nie jest dokumentem DOCX” |
 
 ## Grupa C: formaty biurowe (wymaga LibreOffice)
 
