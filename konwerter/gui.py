@@ -1,15 +1,19 @@
+import dataclasses
+import logging
 import os
 import queue
-import shutil
 import subprocess
-import tempfile
 import threading
 import tkinter as tk
 from pathlib import Path
 from tkinter import ttk, filedialog, messagebox
 
-from konwerter.converters import REGISTRY
-from konwerter.errors import CorruptedInputFile, EmptyInputFile, JsonIsNested
+from konwerter.converters import REGISTRY, ConversionRequest, available_targets, execute
+from konwerter.errors import (
+    CorruptedInputFile, EmptyInputFile, InvalidJsonStructure, JsonIsNested, TargetExists,
+)
+
+log = logging.getLogger(__name__)
 
 ANY_FORMAT = "Wszystkie"
 
@@ -18,12 +22,11 @@ class ConvertApp:
     def __init__(self):
         self.window = tk.Tk()
         self.window.title("konwerter")
-        self.window.geometry("720x380")
+        self.window.geometry("760x420")
         self.window.columnconfigure(1, weight=1)
 
         self.sources = sorted({src for src, _ in REGISTRY})
         self.all_pairs: list[tuple[str, str]] = sorted(REGISTRY)  # wszystkie konwersje (lista po prawej)
-        self.pairs: list[tuple[str, str]] = []  # konwersje pasujące do aktualnego formatu wejściowego
         self.result_queue: queue.Queue = queue.Queue()
         self.busy = False  # True w trakcie konwersji
 
@@ -51,21 +54,29 @@ class ConvertApp:
             row=1, column=2, padx=5, pady=10
         )
 
-        # Wiersz 2: format docelowy
-        tk.Label(left, text="Konwertuj na:").grid(row=2, column=0, padx=5, pady=10, sticky="e")
+        # Wiersz 2: katalog zapisu
+        tk.Label(left, text="Katalog zapisu:").grid(row=2, column=0, padx=5, pady=10, sticky="e")
+        self.dir_var = tk.StringVar()
+        tk.Entry(left, width=30, textvariable=self.dir_var, state="readonly").grid(
+            row=2, column=1, padx=5, pady=10
+        )
+        tk.Button(left, text="Wybierz...", command=self.choose_dir).grid(
+            row=2, column=2, padx=5, pady=10
+        )
+
+        # Wiersz 3: format docelowy
+        tk.Label(left, text="Konwertuj na:").grid(row=3, column=0, padx=5, pady=10, sticky="e")
         self.format_list = ttk.Combobox(left, state="readonly", width=20)
-        self.format_list.grid(row=2, column=1, columnspan=2, padx=5, pady=10, sticky="ew")
+        self.format_list.grid(row=3, column=1, columnspan=2, padx=5, pady=10, sticky="ew")
         self.format_list.bind("<<ComboboxSelected>>", lambda e: self.update_status())
 
-        # Wiersz 3: konwersja
-        self.button_convert = tk.Button(
-            left, text="Konwertuj i zapisz jako...", command=self.convert_and_save
-        )
-        self.button_convert.grid(row=3, column=0, columnspan=3, pady=15)
+        # Wiersz 4: konwersja
+        self.button_convert = tk.Button(left, text="Konwertuj", command=self.convert)
+        self.button_convert.grid(row=4, column=0, columnspan=3, pady=15)
 
-        # Wiersz 4: status
+        # Wiersz 5: status
         self.label_result = tk.Label(left, text="", wraplength=330, justify="left")
-        self.label_result.grid(row=4, column=0, columnspan=3)
+        self.label_result.grid(row=5, column=0, columnspan=3)
 
         # --- Prawa strona: lista możliwych konwersji ---
         right = tk.LabelFrame(self.window, text="Możliwe konwersje")
@@ -103,9 +114,11 @@ class ConvertApp:
     def refresh(self):
         """Odświeża pole 'Konwertuj na' (lista po prawej się nie zmienia)."""
         src = self.current_source()
-        self.pairs = [k for k in self.all_pairs if src is None or k[0] == src]
-
-        targets = list(dict.fromkeys(b for _, b in self.pairs))
+        if src:
+            # formaty docelowe pobierane z rejestru konwerterów
+            targets = available_targets(Path(f"plik{src}"))
+        else:
+            targets = sorted({b for _, b in self.all_pairs})
         self.format_list.config(values=targets)
         if targets:
             self.format_list.current(0)
@@ -116,7 +129,7 @@ class ConvertApp:
     def update_status(self):
         src = self.current_source()
         target = self.format_list.get()
-        if src and not self.pairs:
+        if src and not self.format_list.cget("values"):
             self.label_result.config(text=f"Brak konwersji dla formatu {src}")
         elif target:
             name = os.path.basename(self.file_var.get())
@@ -126,9 +139,9 @@ class ConvertApp:
         self.update_button_state()
 
     def update_button_state(self):
-        """Przycisk aktywny tylko, gdy wybrano plik i nie trwa konwersja."""
-        has_file = bool(self.file_var.get().strip())
-        state = "normal" if has_file and not self.busy else "disabled"
+        """Przycisk aktywny tylko, gdy wybrano plik, katalog, format i nie trwa konwersja."""
+        ready = all(v.strip() for v in (self.file_var.get(), self.dir_var.get(), self.format_list.get()))
+        state = "normal" if ready and not self.busy else "disabled"
         self.button_convert.config(state=state)
 
     # ------------------------------------------------------------------ zdarzenia
@@ -167,57 +180,52 @@ class ConvertApp:
             return
 
         self.file_var.set(path)
+        if not self.dir_var.get():
+            # domyślnie zapisujemy obok pliku źródłowego
+            self.dir_var.set(str(Path(path).parent))
         ext = self.current_file_ext()
         if ext in self.sources:
             self.input_format.set(ext)
         self.refresh()
 
+    def choose_dir(self):
+        path = filedialog.askdirectory(title="Wybierz katalog zapisu", mustexist=True)
+        if path:
+            self.dir_var.set(path)
+            self.update_status()
+
     # ------------------------------------------------------------------ konwersja
-    def convert_and_save(self):
-        source = self.file_var.get().strip()
-        if not source:
-            messagebox.showwarning("Brak pliku", "Najpierw wybierz plik do konwersji.")
-            return
-        if not os.path.isfile(source):
-            messagebox.showerror("Błąd", f"Plik nie istnieje:\n{source}")
-            return
-
-        src_ext = Path(source).suffix.lower()
-        tgt_ext = self.format_list.get()
-        func = REGISTRY.get((src_ext, tgt_ext))
-        if func is None:
-            messagebox.showerror(
-                "Błąd", f"Brak konwersji {src_ext or '(brak rozszerzenia)'} → {tgt_ext or '?'}."
-            )
-            return
-
-        dest = filedialog.asksaveasfilename(
-            title="Zapisz jako",
-            defaultextension=tgt_ext,
-            initialfile=Path(source).stem + tgt_ext,
-            filetypes=[(f"Pliki {tgt_ext}", f"*{tgt_ext}"), ("Wszystkie pliki", "*.*")],
+    def convert(self):
+        request = ConversionRequest(
+            source=Path(self.file_var.get().strip()),
+            target_format=self.format_list.get(),
+            output_dir=Path(self.dir_var.get().strip()),
         )
-        if not dest:
+        # walidacja w wątku GUI - szybka, a pozwala zapytać o nadpisanie przed konwersją
+        try:
+            request.validate()
+        except TargetExists as e:
+            if not messagebox.askyesno(
+                "Plik już istnieje", f"{e.path}\n\nCzy nadpisać istniejący plik?"
+            ):
+                self.label_result.config(text="Anulowano - plik nie został nadpisany.")
+                return
+            request = dataclasses.replace(request, overwrite=True)
+        except Exception as e:
+            self.show_error(e)
             return
 
         # konwersja w osobnym wątku, żeby okno się nie zawieszało
         self.busy = True
         self.update_button_state()
         self.label_result.config(text="Konwertuję, proszę czekać...")
-        threading.Thread(
-            target=self._worker, args=(func, Path(source), dest), daemon=True
-        ).start()
+        threading.Thread(target=self._worker, args=(request,), daemon=True).start()
         self.window.after(100, self._poll_result)
 
-    def _worker(self, func, source: Path, dest: str):
+    def _worker(self, request: ConversionRequest):
         """Działa w osobnym wątku - bez żadnych wywołań tkintera."""
         try:
-            # konwertery zapisują do katalogu, więc konwertujemy do tymczasowego
-            # folderu, a wynik przenosimy pod wybraną przez użytkownika ścieżkę
-            with tempfile.TemporaryDirectory() as tmp:
-                result = func(source, Path(tmp))
-                shutil.move(str(result), dest)
-            self.result_queue.put(("ok", dest))
+            self.result_queue.put(("ok", execute(request)))
         except Exception as e:
             self.result_queue.put(("error", e))
 
@@ -238,14 +246,21 @@ class ConvertApp:
             self.show_error(payload)
 
     def show_error(self, e: Exception):
+        log.error("Błąd pokazany użytkownikowi: %s: %s", type(e).__name__, e)
         if isinstance(e, EmptyInputFile):
             messagebox.showwarning("Pusty plik", str(e))
         elif isinstance(e, JsonIsNested):
             messagebox.showerror("Zagnieżdżony JSON", str(e))
+        elif isinstance(e, InvalidJsonStructure):
+            messagebox.showerror("Nieobsługiwana struktura JSON", str(e))
         elif isinstance(e, CorruptedInputFile):
             messagebox.showerror("Uszkodzony plik", str(e))
         elif isinstance(e, FileNotFoundError):
             messagebox.showerror("Nie znaleziono pliku", str(e))
+        elif isinstance(e, NotADirectoryError):
+            messagebox.showerror("Nie znaleziono katalogu", f"{e}\n\nWybierz istniejący katalog zapisu.")
+        elif isinstance(e, TargetExists):
+            messagebox.showerror("Plik już istnieje", str(e))
         elif isinstance(e, subprocess.TimeoutExpired):
             messagebox.showerror("Przekroczono czas", f"Konwersja trwała zbyt długo:\n{e}")
         elif isinstance(e, PermissionError):

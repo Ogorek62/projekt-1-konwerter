@@ -1,0 +1,9 @@
+[
+    {
+        "imię": "Anna",
+        "adres": {
+            "miasto": "Opole",
+            "kod": "45-001"
+        }
+    }
+]
