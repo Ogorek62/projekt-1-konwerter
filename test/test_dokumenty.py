@@ -12,6 +12,7 @@ from conftest import SAMPLES
 
 
 def libreoffice_zainstalowany() -> bool:
+    """Sprawdza, czy na komputerze jest LibreOffice (potrzebny w testach grupy C)."""
     try:
         find_office()
         return True
@@ -19,6 +20,7 @@ def libreoffice_zainstalowany() -> bool:
         return False
 
 
+# znacznik pomijający test, gdy LibreOffice nie jest zainstalowany
 wymaga_libreoffice = pytest.mark.skipif(
     not libreoffice_zainstalowany(), reason="LibreOffice nie jest zainstalowany"
 )

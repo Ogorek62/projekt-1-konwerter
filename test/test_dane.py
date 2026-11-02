@@ -14,10 +14,12 @@ from conftest import SAMPLES
 
 
 def wczytaj_json(path: Path):
+    """Wczytuje wynikowy plik JSON do porównania z oczekiwanymi danymi."""
     return json.loads(path.read_text(encoding="utf-8"))
 
 
 def wczytaj_csv(path: Path) -> list[list[str]]:
+    """Wczytuje plik CSV jako listę wierszy (pierwszy wiersz to nagłówek)."""
     with open(path, encoding="utf-8-sig", newline="") as f:
         return list(csv.reader(f))
 

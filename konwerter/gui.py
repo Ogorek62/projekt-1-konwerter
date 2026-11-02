@@ -1,3 +1,9 @@
+"""Graficzny interfejs konwertera (tkinter).
+
+Lewa strona okna to formularz (format wejściowy, plik, katalog zapisu, format
+docelowy), prawa - lista wszystkich obsługiwanych konwersji. Sama konwersja
+działa w osobnym wątku, a wynik wraca do okna przez kolejkę.
+"""
 import dataclasses
 import logging
 import os
@@ -15,18 +21,23 @@ from konwerter.errors import (
 
 log = logging.getLogger(__name__)
 
+# Pozycja w liście formatów wejściowych oznaczająca "bez filtrowania"
 ANY_FORMAT = "Wszystkie"
 
 
 class ConvertApp:
+    """Główne okno aplikacji."""
+
     def __init__(self):
         self.window = tk.Tk()
         self.window.title("konwerter")
         self.window.geometry("760x420")
-        self.window.columnconfigure(1, weight=1)
+        self.window.columnconfigure(1, weight=1)  # prawa kolumna rozciąga się z oknem
 
+        # dane pobierane z rejestru konwerterów - GUI nie ma wpisanych formatów na sztywno
         self.sources = sorted({src for src, _ in REGISTRY})
         self.all_pairs: list[tuple[str, str]] = sorted(REGISTRY)  # wszystkie konwersje (lista po prawej)
+        # kolejka, przez którą wątek konwersji przekazuje wynik do wątku GUI
         self.result_queue: queue.Queue = queue.Queue()
         self.busy = False  # True w trakcie konwersji
 
@@ -85,6 +96,7 @@ class ConvertApp:
         right.rowconfigure(0, weight=1)
         right.columnconfigure(0, weight=1)
 
+        # exportselection=False: zaznaczenie na liście nie znika po kliknięciu w combobox
         self.listbox = tk.Listbox(right, exportselection=False)
         self.listbox.grid(row=0, column=0, sticky="nsew", padx=(5, 0), pady=5)
         scroll = ttk.Scrollbar(right, orient="vertical", command=self.listbox.yview)
@@ -96,10 +108,12 @@ class ConvertApp:
         for a, b in self.all_pairs:
             self.listbox.insert(tk.END, f"{a}  →  {b}")
 
+        # ustawiamy początkowy stan pola "Konwertuj na", statusu i przycisku
         self.refresh()
 
     # ------------------------------------------------------------------ pomocnicze
     def current_file_ext(self):
+        """Rozszerzenie wybranego pliku (małymi literami) albo None, gdy plik nie jest wybrany."""
         path = self.file_var.get().strip()
         return Path(path).suffix.lower() if path else None
 
@@ -118,6 +132,7 @@ class ConvertApp:
             # formaty docelowe pobierane z rejestru konwerterów
             targets = available_targets(Path(f"plik{src}"))
         else:
+            # brak wybranego formatu -> pokazujemy wszystkie możliwe formaty docelowe
             targets = sorted({b for _, b in self.all_pairs})
         previous = self.format_list.get()
         self.format_list.config(values=targets)
@@ -132,9 +147,11 @@ class ConvertApp:
         self.update_status()
 
     def update_status(self):
+        """Aktualizuje napis pod przyciskiem (co i na co zostanie skonwertowane)."""
         src = self.current_source()
         target = self.format_list.get()
         if src and not self.format_list.cget("values"):
+            # np. wybrano plik .xyz, dla którego nie ma żadnego konwertera
             self.label_result.config(text=f"Brak konwersji dla formatu {src}")
         elif target:
             name = os.path.basename(self.file_var.get())
@@ -151,6 +168,7 @@ class ConvertApp:
 
     # ------------------------------------------------------------------ zdarzenia
     def on_input_format_change(self, _event=None):
+        """Wywoływane po zmianie formatu wejściowego w comboboxie."""
         selected = self.input_format.get()
         ext = self.current_file_ext()
         # wybrany plik nie pasuje do nowo wybranego formatu -> czyścimy pole pliku
@@ -159,11 +177,13 @@ class ConvertApp:
         self.refresh()
 
     def on_list_select(self, _event=None):
+        """Kliknięcie konwersji na liście po prawej ustawia oba formaty w formularzu."""
         sel = self.listbox.curselection()
         if not sel:
             return
         src, tgt = self.all_pairs[sel[0]]
         self.input_format.set(src)
+        # wybrany wcześniej plik ma inne rozszerzenie -> nie pasuje do tej konwersji
         if self.current_file_ext() and self.current_file_ext() != src:
             self.file_var.set("")
         self.refresh()  # dopasowuje pole 'Konwertuj na' do nowego formatu wejściowego
@@ -171,10 +191,12 @@ class ConvertApp:
         self.update_status()
 
     def choose_file(self):
+        """Otwiera okno wyboru pliku, filtrując pliki wg wybranego formatu wejściowego."""
         selected = self.input_format.get()
         if selected != ANY_FORMAT:
             filetypes = [(f"Pliki {selected}", f"*{selected}"), ("Wszystkie pliki", "*.*")]
         else:
+            # filtr "Obsługiwane pliki" obejmuje wszystkie rozszerzenia z rejestru
             patterns = tuple(f"*{s}" for s in self.sources)
             filetypes = [("Obsługiwane pliki", patterns)]
             filetypes += [(f"Pliki {s}", f"*{s}") for s in self.sources]
@@ -182,18 +204,20 @@ class ConvertApp:
 
         path = filedialog.askopenfilename(title="Wybierz plik do konwersji", filetypes=filetypes)
         if not path:
-            return
+            return  # użytkownik anulował wybór
 
         self.file_var.set(path)
         if not self.dir_var.get():
             # domyślnie zapisujemy obok pliku źródłowego
             self.dir_var.set(str(Path(path).parent))
+        # ustawiamy format wejściowy zgodnie z rozszerzeniem wybranego pliku
         ext = self.current_file_ext()
         if ext in self.sources:
             self.input_format.set(ext)
         self.refresh()
 
     def choose_dir(self):
+        """Otwiera okno wyboru katalogu, do którego zostanie zapisany wynik."""
         path = filedialog.askdirectory(title="Wybierz katalog zapisu", mustexist=True)
         if path:
             self.dir_var.set(path)
@@ -201,6 +225,7 @@ class ConvertApp:
 
     # ------------------------------------------------------------------ konwersja
     def convert(self):
+        """Obsługa przycisku 'Konwertuj': walidacja, pytanie o nadpisanie, start wątku."""
         request = ConversionRequest(
             source=Path(self.file_var.get().strip()),
             target_format=self.format_list.get(),
@@ -215,6 +240,7 @@ class ConvertApp:
             ):
                 self.label_result.config(text="Anulowano - plik nie został nadpisany.")
                 return
+            # użytkownik się zgodził -> kopia żądania z overwrite=True (dataclass jest niezmienna)
             request = dataclasses.replace(request, overwrite=True)
         except Exception as e:
             self.show_error(e)
@@ -225,22 +251,26 @@ class ConvertApp:
         self.update_button_state()
         self.label_result.config(text="Konwertuję, proszę czekać...")
         threading.Thread(target=self._worker, args=(request,), daemon=True).start()
+        # co 100 ms sprawdzamy, czy wątek odesłał już wynik
         self.window.after(100, self._poll_result)
 
     def _worker(self, request: ConversionRequest):
         """Działa w osobnym wątku - bez żadnych wywołań tkintera."""
+        # wynik lub wyjątek trafia do kolejki; odbierze go _poll_result w wątku GUI
         try:
             self.result_queue.put(("ok", execute(request)))
         except Exception as e:
             self.result_queue.put(("error", e))
 
     def _poll_result(self):
+        """Sprawdza kolejkę wyników; jeśli pusta - planuje kolejne sprawdzenie."""
         try:
             status, payload = self.result_queue.get_nowait()
         except queue.Empty:
             self.window.after(100, self._poll_result)  # konwersja jeszcze trwa
             return
 
+        # konwersja zakończona - odblokowujemy przycisk i pokazujemy wynik
         self.busy = False
         self.update_button_state()
         if status == "ok":
@@ -251,6 +281,7 @@ class ConvertApp:
             self.show_error(payload)
 
     def show_error(self, e: Exception):
+        """Pokazuje okno z komunikatem dopasowanym do rodzaju błędu."""
         log.error("Błąd pokazany użytkownikowi: %s: %s", type(e).__name__, e)
         if isinstance(e, EmptyInputFile):
             messagebox.showwarning("Pusty plik", str(e))
@@ -271,7 +302,9 @@ class ConvertApp:
         elif isinstance(e, PermissionError):
             messagebox.showerror("Brak uprawnień", f"Nie można zapisać pliku:\n{e}")
         else:
+            # nieprzewidziany błąd - pokazujemy jego typ i treść
             messagebox.showerror("Błąd konwersji", f"{type(e).__name__}: {e}")
 
     def start(self):
+        """Uruchamia pętlę zdarzeń okna (blokuje do zamknięcia aplikacji)."""
         self.window.mainloop()
