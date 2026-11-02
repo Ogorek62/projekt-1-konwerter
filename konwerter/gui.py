@@ -22,8 +22,10 @@ class ConvertApp:
         self.window.columnconfigure(1, weight=1)
 
         self.sources = sorted({src for src, _ in REGISTRY})
-        self.pairs: list[tuple[str, str]] = []  # aktualnie widoczne konwersje
+        self.all_pairs: list[tuple[str, str]] = sorted(REGISTRY)  # wszystkie konwersje (lista po prawej)
+        self.pairs: list[tuple[str, str]] = []  # konwersje pasujące do aktualnego formatu wejściowego
         self.result_queue: queue.Queue = queue.Queue()
+        self.busy = False  # True w trakcie konwersji
 
         # --- Lewa strona: formularz ---
         left = tk.Frame(self.window)
@@ -79,6 +81,10 @@ class ConvertApp:
         self.listbox.config(yscrollcommand=scroll.set)
         self.listbox.bind("<<ListboxSelect>>", self.on_list_select)
 
+        # lista po prawej jest stała - wypełniamy ją raz, wszystkimi konwersjami
+        for a, b in self.all_pairs:
+            self.listbox.insert(tk.END, f"{a}  →  {b}")
+
         self.refresh()
 
     # ------------------------------------------------------------------ pomocnicze
@@ -95,13 +101,9 @@ class ConvertApp:
         return None if selected == ANY_FORMAT else selected
 
     def refresh(self):
-        """Odświeża listę możliwych konwersji i pole 'Konwertuj na'."""
+        """Odświeża pole 'Konwertuj na' (lista po prawej się nie zmienia)."""
         src = self.current_source()
-        self.pairs = sorted(k for k in REGISTRY if src is None or k[0] == src)
-
-        self.listbox.delete(0, tk.END)
-        for a, b in self.pairs:
-            self.listbox.insert(tk.END, f"{a}  →  {b}")
+        self.pairs = [k for k in self.all_pairs if src is None or k[0] == src]
 
         targets = list(dict.fromkeys(b for _, b in self.pairs))
         self.format_list.config(values=targets)
@@ -121,6 +123,13 @@ class ConvertApp:
             self.label_result.config(text=f"Plik: {name or '-'} → format: {target}")
         else:
             self.label_result.config(text="")
+        self.update_button_state()
+
+    def update_button_state(self):
+        """Przycisk aktywny tylko, gdy wybrano plik i nie trwa konwersja."""
+        has_file = bool(self.file_var.get().strip())
+        state = "normal" if has_file and not self.busy else "disabled"
+        self.button_convert.config(state=state)
 
     # ------------------------------------------------------------------ zdarzenia
     def on_input_format_change(self, _event=None):
@@ -135,10 +144,11 @@ class ConvertApp:
         sel = self.listbox.curselection()
         if not sel:
             return
-        src, tgt = self.pairs[sel[0]]
+        src, tgt = self.all_pairs[sel[0]]
         self.input_format.set(src)
         if self.current_file_ext() and self.current_file_ext() != src:
             self.file_var.set("")
+        self.refresh()  # dopasowuje pole 'Konwertuj na' do nowego formatu wejściowego
         self.format_list.set(tgt)
         self.update_status()
 
@@ -191,7 +201,8 @@ class ConvertApp:
             return
 
         # konwersja w osobnym wątku, żeby okno się nie zawieszało
-        self.button_convert.config(state="disabled")
+        self.busy = True
+        self.update_button_state()
         self.label_result.config(text="Konwertuję, proszę czekać...")
         threading.Thread(
             target=self._worker, args=(func, Path(source), dest), daemon=True
@@ -217,7 +228,8 @@ class ConvertApp:
             self.window.after(100, self._poll_result)  # konwersja jeszcze trwa
             return
 
-        self.button_convert.config(state="normal")
+        self.busy = False
+        self.update_button_state()
         if status == "ok":
             self.label_result.config(text=f"Zapisano: {payload}")
             messagebox.showinfo("Gotowe", f"Zapisano:\n{payload}")

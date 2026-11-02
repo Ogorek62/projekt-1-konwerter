@@ -1,4 +1,5 @@
 from collections.abc import Callable
+from dataclasses import dataclass
 import csv
 import json
 from docx import Document
@@ -68,7 +69,6 @@ def csv_to_json(source_file: Path, output_dir: Path):
 
     with open(target, mode='w', encoding='utf-8') as jsonfile:
         json.dump(data, jsonfile, indent=4, ensure_ascii=False)
-    print("[FUNCTION END] convert_csv_to_json")
     return target
     
 @converter(".json", ".csv")
@@ -108,7 +108,6 @@ def json_to_csv(source_file: Path, output_dir: Path):
     
     finally:
         df.close()
-    print("[FUNCTION END] convert_json_to_csv")
     return target
 
 @converter(".txt", ".docx")
@@ -121,10 +120,9 @@ def txt_to_docx(source_file: Path, output_dir: Path):
 
     target = output_dir / f"{source_file.stem}.docx"
 
-    doc.save(target) 
+    doc.save(target)
 
-    print(f"DOCX created successfully: {target}")
-    return target 
+    return target
 
 @converter(".txt", ".pdf")
 def txt_to_pdf(source_file: Path, output_dir: Path):
@@ -153,7 +151,9 @@ def docx_to_txt(source_file: Path, output_dir: Path):
     return target
 
 @converter(".docx", ".pdf")
-def docx_to_pdf(source_file: Path, output_dir: Path) -> Path:
+@converter(".odt", ".pdf")
+def office_to_pdf(source_file: Path, output_dir: Path) -> Path:
+    """Konwersja DOCX/ODT -> PDF przez LibreOffice w trybie headless."""
     command = [
         find_office(), "--headless", "--convert-to", "pdf",
         "--outdir", str(output_dir), str(source_file)
@@ -165,3 +165,30 @@ def docx_to_pdf(source_file: Path, output_dir: Path) -> Path:
     if not target.exists():
         raise RuntimeError("Narzędzie nie utworzyło oczekiwanego pliku")
     return target
+
+
+@dataclass(frozen=True)
+class ConversionRequest:
+    source: Path
+    target_format: str
+    output_dir: Path
+
+    def validate(self) -> None:
+        if not self.source.is_file():
+            raise FileNotFoundError("Nie znaleziono pliku wejściowego")
+        if not self.output_dir.is_dir():
+            raise NotADirectoryError("Nie znaleziono katalogu docelowego")
+        key = (self.source.suffix.lower(), self.target_format.lower())
+        if key not in REGISTRY:
+            raise ValueError(f"Nieobsługiwana konwersja: {key}")
+
+
+def available_targets(source: Path) -> list[str]:
+    return sorted(target for (src, target) in REGISTRY if src == source.suffix.lower())
+
+
+def execute(request: ConversionRequest) -> Path:
+    request.validate()
+    key = (request.source.suffix.lower(), request.target_format.lower())
+    # TODO: polityka nadpisywania i rejestrowanie czasu operacji
+    return REGISTRY[key](request.source, request.output_dir)

@@ -176,10 +176,3 @@ projekt-1-konwerter/
 ```
 
 ---
-
-## ✅ TODO
-
-- [x] Przerobic program tak aby był bardziej jak ten na tym pliku od pani
-- [x] Konwersja z docx do pdf orax docx do txt - sobota
-- [x] zrobienie lepszych testow
-- [ ] zaczęcie gui - niedziela
