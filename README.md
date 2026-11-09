@@ -293,8 +293,8 @@ W projekcie korzystano z asystenta AI **Claude (Anthropic)**. AI użyto do pomoc
 - tworzeniu **interfejsu użytkownika (UI)**,
 - pisaniu **testów**,
 - **poprawkach błędów** w kodzie,
-- **zrozumieniu kodu napisanego przez AI**.
-- zrobiene plików testowych
+- **zrozumieniu kodu napisanego przez AI**,
+- tworzeniu **plików testowych**.
 
 ---
 

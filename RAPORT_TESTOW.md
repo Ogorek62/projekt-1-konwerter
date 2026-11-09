@@ -16,10 +16,10 @@ Raport opracowano na podstawie pliku [`raport_testow.txt`](raport_testow.txt), c
 
 | Wynik | Liczba |
 |---|---|
-| ✅ zaliczone (PASSED) | **45** |
+| ✅ zaliczone (PASSED) | **46** |
 | ❌ niezaliczone (FAILED) | 0 |
 | ⏭️ pominięte (SKIPPED) | 0 |
-| **Razem** | **45** (czas: 3,41 s) |
+| **Razem** | **46** (czas: 2,95 s) |
 
 Wszystkie testy automatyczne zakończyły się powodzeniem. Żaden test nie został pominięty, więc konwersje przez LibreOffice również zostały faktycznie wykonane.
 
@@ -46,7 +46,7 @@ Wszystkie testy automatyczne zakończyły się powodzeniem. Żaden test nie zost
 | `test_json_do_csv_bledy` (5×) | `json_pusta_lista`, `json_zagniezdzony`, `json_lista_w_wartosci`, `json_lista_wartosci`, `json_uszkodzony` | odpowiednio: `EmptyInputFile`, `JsonIsNested` (2×), `InvalidJsonStructure`, `CorruptedInputFile` |
 | `test_csv_json_csv_bez_utraty_danych` | `csv_puste_wartosci` | CSV → JSON → CSV daje dane identyczne z wejściem (wynik da się ponownie odczytać) |
 
-### `test/test_dokumenty.py`: grupy B i C (9 testów, wszystkie ✅)
+### `test/test_dokumenty.py`: grupy B i C (10 testów, wszystkie ✅)
 
 | Test | Dane wejściowe | Co sprawdzono |
 |---|---|---|
@@ -55,7 +55,7 @@ Wszystkie testy automatyczne zakończyły się powodzeniem. Żaden test nie zost
 | `test_txt_do_pdf_zawija_dluga_linie` | `txt_dluga_linia.txt` | długa linia jest zawinięta na kilka wierszy, a po złączeniu tekst jest identyczny z wejściem (nic nie zostało ucięte) |
 | `test_docx_do_txt` | `docx_dokument.docx` | dokładna treść TXT z polskimi znakami i pustym akapitem |
 | `test_txt_w_cp1250_daje_czytelny_blad` (2×) | `txt_cp1250.txt` → DOCX / PDF | błąd `CorruptedInputFile` z informacją o wymaganym UTF-8 |
-| `test_uszkodzony_docx` | `docx_uszkodzony.docx` | błąd `CorruptedInputFile` zamiast awarii |
+| `test_uszkodzony_docx` (2×) | `docx_uszkodzony.docx` → TXT / PDF | błąd `CorruptedInputFile` zamiast awarii; przy PDF błąd pojawia się przed wywołaniem LibreOffice, więc ten test nie wymaga jego instalacji |
 | `test_dokument_biurowy_do_pdf` (2×) | `docx_dokument.docx`, `odt_dokument.odt` | LibreOffice tworzy PDF, który da się otworzyć i który zawiera tekst dokumentu (sprawdzane fragmenty bez polskich liter, patrz uwaga niżej) |
 
 ### `test/test_rejestr.py`: rejestr, walidacja, nadpisywanie (16 testów, wszystkie ✅)
